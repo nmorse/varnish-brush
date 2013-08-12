@@ -7,16 +7,17 @@ var MongoClient = require('mongodb').MongoClient,
 var io = require('socket.io').listen(parseInt(process.argv[3], 10));
 var http = require('http');
 var node_static_file = new(node_static.Server)('./client');
+var secret = require('./secret.js');
 var server = require('http').createServer(function (req, res) {
     req.addListener('end', function () {
         node_static_file.serve(req, res);
     });
 });
-var cache_lookup = [{"name":"cache1", "example_subdomain":"nctc"}, 
-                    {"name":"cache2", "example_subdomain":"pace"}, 
-                    {"name":"cache3", "example_subdomain":"west"},
-                    {"name":"cache4", "example_subdomain":"pnc"},
-                    {"name":"cache5", "example_subdomain":"uncg"}
+var cache_lookup = [{"name":"cache1", "example_subdomain":"ab"}, 
+                    {"name":"cache2", "example_subdomain":"ba"}, 
+                    {"name":"cache3", "example_subdomain":"cc"},
+                    {"name":"cache4", "example_subdomain":"d3"},
+                    {"name":"cache5", "example_subdomain":"ef"}
                    ];
 
 server.listen(process.argv[2]); //process.argv[2]
@@ -37,7 +38,7 @@ setInterval(function() {
 function get_varnishstats(i) {
     var subdomain = cache_lookup[i].example_subdomain;
     var options = {
-        host: subdomain +".smartcatalogiq.com",
+        host: subdomain +".the.domain",
         port: 8080,
         path: "/varnishstats",
         method: 'GET'
@@ -54,7 +55,7 @@ function get_varnishstats(i) {
             var r2;
             var crypto_md5 = crypto.createHash('md5');
             var host = subdom+".smartcatalogiq.com";
-            crypto_md5.update(r1+"10ksdnaspars");
+            crypto_md5.update(r1+secret.password);
             r2 = "/"+crypto_md5.digest('hex');
             //console.log('BODY: ' + r1);
             //console.log('R2: ' + r2);
