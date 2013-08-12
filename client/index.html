@@ -1,0 +1,319 @@
+<html>
+    <head>
+        <!-- http://iq.academiccatalogsearch.com:8076/chart_d3.html -->
+        <title>IQ Cache Server Stats</title>
+        <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
+        <script type="text/javascript" src="http://code.jquery.com/jquery.min.js"></script>
+        <script type="text/javascript" src="http://iq.academiccatalogsearch.com:8078/socket.io/socket.io.js"></script>
+        <script type="text/javascript" src="/js/jquery.tmpl.min.js"></script>
+
+        <script src="/js/d3.v3.min.js"></script>
+        <style>
+            /* tell the SVG path to be a thin blue line without any area fill */
+            path {
+                stroke-width: 1;
+                fill: none;
+            }
+            
+            .data1 {
+                stroke: steelblue;
+            }
+
+            .data2 {
+                stroke: orange;
+            }
+            
+            .data3 {
+                stroke: green;
+            }
+
+            .axis {
+              shape-rendering: crispEdges;
+            }
+
+            .x.axis line {
+              stroke: lightgrey;
+            }
+
+            .x.axis .minor {
+              stroke-opacity: .5;
+            }
+
+            .x.axis path {
+              display: none;
+            }
+            
+            .x.axis text {
+                font-size: 14;
+            }
+
+            .y.axis line, .y.axis path {
+              fill: none;
+              stroke: lightgrey;
+            }
+
+            .y.axis text {
+                font-size: 14;
+            }
+
+            .y.axisRight text {
+                fill: steelblue;
+            }
+            
+            .y.axisLeft text {
+                fill: green;
+            }
+            
+            .aGraph {
+                float:left;
+            }
+            .bGraph {
+                float:right;
+            }
+            .clear {
+                clear:both;
+            }
+            .cell {
+ color: black;
+ border: 1px solid black;
+ position: absolute;    
+ font-size: 8pt;
+ font-family: sans-serif;    
+    
+}
+        </style>
+    </head>
+    <body>
+
+
+    <div style="position:absolute;top:0px;left:0;"><div id="cache1" class="aGraph"></div><div class="bGraph">   <br/>1 Dallas
+    <div id="cache1_tray"> </div>
+    </div><div class="clear"></div></div>
+    <div style="position:absolute;top:300px;left:0;"><div id="cache2" class="aGraph"></div><div class="bGraph"> <br/>2 Virginia (1)</div><div class="clear"></div></div>
+    <div style="position:absolute;top:600px;left:0;"><div id="cache3" class="aGraph"></div><div class="bGraph"> <br/>3 Oregon</div><div class="clear"></div></div>
+    <div style="position:absolute;top:900px;left:0;"><div id="cache4" class="aGraph"></div><div class="bGraph"> <br/>4 Chicago</div><div class="clear"></div></div>
+    <div style="position:absolute;top:1200px;left:0;"><div id="cache5" class="aGraph"></div><div class="bGraph"><br/>5 Virginia (2)</div><div class="clear"></div></div>
+    <div style="position:absolute;top:1500px;left:0;"><div id="cache6" class="aGraph"></div><div class="bGraph"><br/>6 East (test)</div><div class="clear"></div></div>
+
+
+    <script>
+    var socket = io.connect('http://iq.academiccatalogsearch.com:8078');
+    socket.on('data', function (graphable) {
+        //console.log(JSON.stringify(graphable));
+        var d1 = [], d2 = [], x_scale = [], percent = [];
+        var hits = 0, reqs = 0;
+        $.each(graphable.data, function(i, o) {
+            var date = new Date(parseInt(o._id.toString().slice(0,8), 16)/60);
+            x_scale[i] = date.getTime();
+            //console.log('time' + x_scale[i]);
+            d1[i] = o.cache_hit;
+            d2[i] = o.cache_miss;
+        });
+        x_scale = x_scale.reverse();
+        d1 = d1.reverse();
+        $.each(d1, function(i, o) {
+            var next = d1[i+1] || d1[i];
+            var last = d1[i];
+            var scale = (x_scale[i+1] || x_scale[i]) - x_scale[i];
+            if (scale !== 0) {
+                d1[i] = (next - last)/scale;
+            }
+            else {
+                d1[i] = next - last;
+            }
+        });
+        d2 = d2.reverse();
+        $.each(d2, function(i, o) {
+            var next = d2[i+1] || d2[i];
+            var last = d2[i];
+            var scale = (x_scale[i+1] || x_scale[i]) - x_scale[i];
+            if (scale !== 0) {
+                d2[i] = (next - last)/scale;
+            }
+            else {
+                d2[i] = next - last;
+            }
+            if (i === 0) {
+                percent[i] = (d1[i]/Math.max((d1[i]+d2[i]), 0.1e-23))*100;
+            }
+            else {
+                reqs += d1[i]+d2[i];
+                hits += d1[i];
+                if (reqs > 40) {
+                    percent[i] = (hits/reqs)*100;
+                    hits = 0;
+                    reqs = 0;
+                }
+                else {
+                    percent[i] = percent[i-1]; 
+                }
+            }
+        });
+        d1.splice(-1, 1);
+        d2.splice(-1, 1);
+        percent.splice(-1, 1);
+        x_scale.splice(-1, 1);
+        graphstats(x_scale, d1, d2, graphable.cache_server, percent);
+    });
+    socket.on('err', function (data) {
+        data = data.replace(/\n/g, "<br/>\n");
+        $(".list").append("<div style='color:red;'>"+data+"</div>");
+    });
+    var graphTray = function() {
+        var width = 300,
+            height = 200,
+            color = d3.scale.category20c();
+
+        var json = {
+            "name": "tags",
+            "children": [
+                {"name":"unco", "size": 170},
+                {"name":"nctc", "size": 40}
+            ]
+        };
+
+        var colors = d3.scale.category20c();
+
+        var treemap = d3.layout.treemap()
+            .size([width, height])
+            .sticky(true)
+            .sort(function(a,b) { return a.size - b.size; })
+            .round(true)
+            .value(function(d) { return d.size; }).mode("dice");
+
+        function cell() {
+            this
+              .style("background", function(d) { return d.children ? color(d.name) : null; })
+              .style("left", function(d) { return d.x + "px"; })
+              .style("top", function(d) { return d.y + "px"; })
+              .style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+              .style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+        }
+
+        var div = d3.select('#cache1_tray').style("position", "relative");
+
+        div.data([json]).selectAll('div')
+           .data(treemap.nodes)
+          .enter().append("div")
+           .attr("class", "cell")
+           .call(cell)
+           .text(function(d) { return d.children ? null : d.name; });
+
+    };
+    var graphstats = function(x_scale, data1, data2, sel, percent) {
+        /* implementation heavily influenced by http://bl.ocks.org/1166403 */
+        /* some arguments AGAINST the use of dual-scaled axes line graphs can be found at http://www.perceptualedge.com/articles/visual_business_intelligence/dual-scaled_axes.pdf */
+        // define dimensions of graph
+        var m = [40, 80, 40, 80];  // margins
+        var w = 900 - m[1] - m[3]; // width
+        var h = 300 - m[0] - m[2]; // height
+        var min1, max1, range1, min2, max2, range2, maxrange;
+        min1 = Math.min.apply(Math, data1);
+        max1 = Math.max.apply(Math, data1);
+        range1 = max1 - min1;
+        min2 = Math.min.apply(Math, data2);
+        max2 = Math.max.apply(Math, data2);
+        range2 = max2 - min2;
+        maxrange = Math.max(max1, max2);
+        
+        // X scale will fit all values from data[] within pixels 0-w
+        var x = d3.scale.linear().domain([x_scale[x_scale.length-1]-1600, x_scale[x_scale.length-1]]).range([0, w]);
+        // Y scale will fit values from 0-10 within pixels h-0 (Note the inverted domain for the y-scale: bigger is up!)
+        var y1 = d3.scale.pow().exponent(0.6018).domain([0, 100]).range([h, 0]); // in real world the domain would be dynamically calculated from the data
+        var y2 = d3.scale.pow().exponent(0.3).domain([0, 480]).range([h, 0]);  // in real world the domain would be dynamically calculated from the data
+            // automatically determining max range can work something like this
+            // var y = d3.scale.linear().domain([0, d3.max(data)]).range([h, 0]);
+
+        // create a line function that can convert data[] into x and y points
+        var line1 = d3.svg.line()
+            // assign the X function to plot our line as we wish
+            .x(function(d,i) { 
+                // verbose logging to show what's actually being done
+                //console.log('Plotting X1 value for data point: ' + d + ' using index: ' + i + ' to be at: ' + x(i) + ' using our xScale.');
+                // return the X coordinate where we want to plot this datapoint
+                return x(x_scale[i]); 
+            })
+            .y(function(d) { 
+                // verbose logging to show what's actually being done
+                //console.log('Plotting Y1 value for data point: ' + d + ' to be at: ' + y1(d) + " using our y1Scale.");
+                // return the Y coordinate where we want to plot this datapoint
+                return y2(d); 
+            })
+            
+        // create a line function that can convert data[] into x and y points
+        var line2 = d3.svg.line()
+            // assign the X function to plot our line as we wish
+            .x(function(d,i) { 
+                // verbose logging to show what's actually being done
+                //console.log('Plotting X2 value for data point: ' + d + ' using index: ' + i + ' to be at: ' + x(i) + ' using our xScale.');
+                // return the X coordinate where we want to plot this datapoint
+                return x(x_scale[i]); 
+            })
+            .y(function(d) { 
+                // verbose logging to show what's actually being done
+                //console.log('Plotting Y2 value for data point: ' + d + ' to be at: ' + y2(d) + " using our y2Scale.");
+                // return the Y coordinate where we want to plot this datapoint
+                return y2(d); 
+            })
+        var line3 = d3.svg.line()
+            // assign the X function to plot our line as we wish
+            .x(function(d,i) { 
+                return x(x_scale[i]); 
+            })
+            .y(function(d) { 
+                return y1(d); 
+            })
+
+        // Add an SVG element with the desired dimensions and margin.
+        var graph = d3.select("#"+sel).append("svg:svg")
+              .attr("width", w + m[1] + m[3])
+              .attr("height", h + m[0] + m[2])
+            .append("svg:g")
+              .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+
+        // create yAxis
+        var xAxis = d3.svg.axis().scale(x).tickSize(-h).ticks(5);
+        // Add the x-axis.
+        graph.append("svg:g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + h + ")")
+              .call(xAxis);
+
+
+        // create left yAxis
+        var yAxisLeft = d3.svg.axis().scale(y1).ticks(8).orient("left");
+        // Add the y-axis to the left
+        graph.append("svg:g")
+              .attr("class", "y axis axisLeft")
+              .attr("transform", "translate(-15,0)")
+              .call(yAxisLeft);
+
+        // create right yAxis
+        var yAxisRight = d3.svg.axis().scale(y2).ticks(8).tickSize(-w).tickValues([0, 1, 8, 25, 60, 120, 240, 480]).orient("right");
+        // Add the y-axis to the right
+        graph.append("svg:g")
+              .attr("class", "y axis axisRight")
+              .attr("transform", "translate(" + (w+15) + ",0)")
+              .call(yAxisRight);
+        
+        // add lines
+        // do this AFTER the axes above so that the line is above the tick-lines
+        graph.append("svg:path").attr("d", line1(data1)).attr("class", "data1");
+        graph.append("svg:path").attr("d", line2(data2)).attr("class", "data2");
+        graph.append("svg:path").attr("d", line3(percent)).attr("class", "data3");
+    };
+    
+    $(function() {
+        socket.emit("data_reqest", {"cache_server":"cache1", "limit":400});
+        socket.emit("data_reqest", {"cache_server":"cache2", "limit":400});
+        socket.emit("data_reqest", {"cache_server":"cache3", "limit":400});
+        socket.emit("data_reqest", {"cache_server":"cache4", "limit":400});
+        socket.emit("data_reqest", {"cache_server":"cache5", "limit":400});
+        socket.emit("data_reqest", {"cache_server":"cache6", "limit":400});
+        graphTray();
+    });
+
+    </script>
+
+    </body>
+</html>

@@ -1,0 +1,1 @@
+sudo nodemon ./server/main.js 8066 8068 varnish_brush brush 1>logs/out.log 2>logs/err.log &
