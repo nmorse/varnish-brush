@@ -13,14 +13,9 @@ var server = require('http').createServer(function (req, res) {
         node_static_file.serve(req, res);
     });
 });
-var cache_lookup = [{"name":"cache1", "example_subdomain":"ab"}, 
-                    {"name":"cache2", "example_subdomain":"ba"}, 
-                    {"name":"cache3", "example_subdomain":"cc"},
-                    {"name":"cache4", "example_subdomain":"d3"},
-                    {"name":"cache5", "example_subdomain":"ef"}
-                   ];
+var cache_lookup = require('./cache_server_list.js');
 
-server.listen(process.argv[2]); //process.argv[2]
+server.listen(process.argv[2]);
 
 MongoClient.connect("mongodb://localhost:27017/iq", function(err, db) {
   if(err) { return console.dir(err); }
@@ -36,9 +31,9 @@ setInterval(function() {
 },240000);
 
 function get_varnishstats(i) {
-    var subdomain = cache_lookup[i].example_subdomain;
+    var domain = cache_lookup[i].example_domain;
     var options = {
-        host: subdomain +".the.domain",
+        host: domain,
         port: 8080,
         path: "/varnishstats",
         method: 'GET'
