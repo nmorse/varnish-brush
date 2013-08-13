@@ -30,6 +30,13 @@ setInterval(function() {
     }
 },240000);
 
+setTimeout(function() {
+    var i = 0, len = cache_lookup.length;
+    for (i = 0; i < len; i+=1) {
+        get_varnishstats(i);
+    }
+},2000);
+
 function get_varnishstats(i) {
     var domain = cache_lookup[i].example_domain;
     var options = {
@@ -38,12 +45,13 @@ function get_varnishstats(i) {
         path: "/varnishstats",
         method: 'GET'
     };
-
+    
     var req = http.request(options, function(res) {
-        console.log('STATUS: ' + res.statusCode);
+        //console.log('STATUS: ' + res.statusCode);
         //console.log('HEADERS: ' + JSON.stringify(res.headers));
         var dom = domain;
         var i2 = i;
+        if (res.statusCode >= 300) {return;}
         res.setEncoding('utf8');
         res.on('data', function (r1) {
             var i3 = i2;
@@ -52,8 +60,8 @@ function get_varnishstats(i) {
             var host = dom;
             crypto_md5.update(r1+secret.password);
             r2 = "/"+crypto_md5.digest('hex');
-            console.log('BODY: ' + r1);
-            console.log('R2: ' + r2);
+            //console.log('BODY: ' + r1);
+            //console.log('R2: ' + r2);
             var options = {
               host: host,
               port: 8080,
@@ -67,7 +75,7 @@ function get_varnishstats(i) {
                 var vdata, stats = null, domains = null;
                 chunk = chunk+"";
                 if (!chunk || chunk.search(/^Page Not Found/i) >= 0 || chunk.search(/^\n$/m) >= 0) {return;}
-                console.log('Data BODY: ' + chunk);
+                //console.log('Data BODY: ' + chunk);
                 vdata = JSON.parse(chunk);
                 if (vdata.stats) {
                     stats = vdata.stats;
@@ -84,13 +92,13 @@ function get_varnishstats(i) {
                 if (stats) {
                     db_varnishstats.insert(stats, {safe:true}, function(err, result) {
                         if (err) {console.log("MongoInsert error: "+err);}
-                        console.log("MongoInsert result: "+result);
+                        //console.log("MongoInsert result: "+result);
                     });
                 }
                 if (domains) {
                     db_varnishdomains.insert(domains, {safe:true}, function(err, result) {
                         if (err) {console.log("MongoInsert error: "+err);} 
-                        console.log("MongoInsert db_varnishdomains result: "+result);
+                        //console.log("MongoInsert db_varnishdomains result: "+result);
                     });
                 }
               });
@@ -139,4 +147,5 @@ io.sockets.on('connection', function (socket) {
         });
     });
 });
+
 
