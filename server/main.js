@@ -40,20 +40,20 @@ function get_varnishstats(i) {
     };
 
     var req = http.request(options, function(res) {
-        //console.log('STATUS: ' + res.statusCode);
+        console.log('STATUS: ' + res.statusCode);
         //console.log('HEADERS: ' + JSON.stringify(res.headers));
-        var subdom = subdomain;
+        var dom = domain;
         var i2 = i;
         res.setEncoding('utf8');
         res.on('data', function (r1) {
             var i3 = i2;
             var r2;
             var crypto_md5 = crypto.createHash('md5');
-            var host = subdom+".smartcatalogiq.com";
+            var host = dom;
             crypto_md5.update(r1+secret.password);
             r2 = "/"+crypto_md5.digest('hex');
-            //console.log('BODY: ' + r1);
-            //console.log('R2: ' + r2);
+            console.log('BODY: ' + r1);
+            console.log('R2: ' + r2);
             var options = {
               host: host,
               port: 8080,
@@ -62,7 +62,7 @@ function get_varnishstats(i) {
             };
 
             var req = http.request(options, function(res) {
-              //res.setEncoding('utf8');
+              res.setEncoding('utf8');
               res.on('data', function (chunk) {
                 var vdata, stats = null, domains = null;
                 chunk = chunk+"";
@@ -84,13 +84,13 @@ function get_varnishstats(i) {
                 if (stats) {
                     db_varnishstats.insert(stats, {safe:true}, function(err, result) {
                         if (err) {console.log("MongoInsert error: "+err);}
-                        //console.log("MongoInsert result: "+result);
+                        console.log("MongoInsert result: "+result);
                     });
                 }
                 if (domains) {
                     db_varnishdomains.insert(domains, {safe:true}, function(err, result) {
                         if (err) {console.log("MongoInsert error: "+err);} 
-                        //console.log("MongoInsert db_varnishdomains result: "+result);
+                        console.log("MongoInsert db_varnishdomains result: "+result);
                     });
                 }
               });
@@ -117,7 +117,7 @@ function get_varnishstats(i) {
     req.end();
 }
 
-io.set('log level', 1); // reduce logging
+//io.set('log level', 5); // reduce logging
 io.sockets.on('connection', function (socket) {
     socket.on('data_reqest', function (data) {
         //https://github.com/mongodb/node-mongodb-native/blob/master/Readme.md#find

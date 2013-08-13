@@ -1,1 +1,1 @@
-module.exports = {"password": "weird7389567%63^"};
+module.exports = {"password": "10ksdnaspars"};
