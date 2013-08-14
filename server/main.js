@@ -140,7 +140,7 @@ io.sockets.on('connection', function (socket) {
     socket.on('domains', function (data) {
         //https://github.com/mongodb/node-mongodb-native/blob/master/Readme.md#find
         var limit = data.limit || 50;
-        var cursor = db_varnishstats.find({"cache_server": data.cache_server}, ["cache_hit", "cache_miss"]);
+        var cursor = db_varnishstats.find({"cache_server": data.cache_server});
         cursor.sort({"_id":-1}).limit(limit);
         cursor.toArray(function(err, docs) {
             socket.emit('domains', {"cache_server": data.cache_server, "data":docs});
