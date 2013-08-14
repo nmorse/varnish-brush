@@ -30,6 +30,13 @@ setInterval(function() {
     }
 },240000);
 
+setTimeout(function() {
+    var i = 0, len = cache_lookup.length;
+    for (i = 0; i < len; i+=1) {
+        get_varnishstats(i);
+    }
+},2000);
+
 function get_varnishstats(i) {
     var domain = cache_lookup[i].example_domain;
     var options = {
@@ -38,12 +45,13 @@ function get_varnishstats(i) {
         path: "/varnishstats",
         method: 'GET'
     };
-
+    
     var req = http.request(options, function(res) {
         //console.log('STATUS: ' + res.statusCode);
         //console.log('HEADERS: ' + JSON.stringify(res.headers));
         var dom = domain;
         var i2 = i;
+        if (res.statusCode >= 300) {return;}
         res.setEncoding('utf8');
         res.on('data', function (r1) {
             var i3 = i2;
@@ -62,12 +70,12 @@ function get_varnishstats(i) {
             };
 
             var req = http.request(options, function(res) {
-              //res.setEncoding('utf8');
+              res.setEncoding('utf8');
               res.on('data', function (chunk) {
                 var vdata, stats = null, domains = null;
                 chunk = chunk+"";
                 if (!chunk || chunk.search(/^Page Not Found/i) >= 0 || chunk.search(/^\n$/m) >= 0) {return;}
-                console.log('Data BODY: ' + chunk);
+                //console.log('Data BODY: ' + chunk);
                 vdata = JSON.parse(chunk);
                 if (vdata.stats) {
                     stats = vdata.stats;
@@ -117,7 +125,7 @@ function get_varnishstats(i) {
     req.end();
 }
 
-io.set('log level', 1); // reduce logging
+//io.set('log level', 5); // reduce logging
 io.sockets.on('connection', function (socket) {
     socket.on('data_reqest', function (data) {
         //https://github.com/mongodb/node-mongodb-native/blob/master/Readme.md#find
@@ -132,11 +140,12 @@ io.sockets.on('connection', function (socket) {
     socket.on('domains', function (data) {
         //https://github.com/mongodb/node-mongodb-native/blob/master/Readme.md#find
         var limit = data.limit || 50;
-        var cursor = db_varnishstats.find({"cache_server": data.cache_server}, ["cache_hit", "cache_miss"]);
+        var cursor = db_varnishstats.find({"cache_server": data.cache_server});
         cursor.sort({"_id":-1}).limit(limit);
         cursor.toArray(function(err, docs) {
             socket.emit('domains', {"cache_server": data.cache_server, "data":docs});
         });
     });
 });
+
 
