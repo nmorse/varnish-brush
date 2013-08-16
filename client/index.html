@@ -77,6 +77,7 @@
  border: 1px solid black;
  position: absolute;    
  font-size: 8pt;
+ line-height: 9px;
  font-family: sans-serif;    
     
 }
@@ -88,15 +89,36 @@
     <div style="position:absolute;top:0px;left:0;"><div id="cache1" class="aGraph"></div><div class="bGraph">   <br/>1 Dallas
     <div id="cache1_tray"> </div>
     </div><div class="clear"></div></div>
-    <div style="position:absolute;top:300px;left:0;"><div id="cache2" class="aGraph"></div><div class="bGraph"> <br/>2 Virginia (1)</div><div class="clear"></div></div>
-    <div style="position:absolute;top:600px;left:0;"><div id="cache3" class="aGraph"></div><div class="bGraph"> <br/>3 Oregon</div><div class="clear"></div></div>
-    <div style="position:absolute;top:900px;left:0;"><div id="cache4" class="aGraph"></div><div class="bGraph"> <br/>4 Chicago</div><div class="clear"></div></div>
-    <div style="position:absolute;top:1200px;left:0;"><div id="cache5" class="aGraph"></div><div class="bGraph"><br/>5 Virginia (2)</div><div class="clear"></div></div>
-    <div style="position:absolute;top:1500px;left:0;"><div id="cache6" class="aGraph"></div><div class="bGraph"><br/>6 East (test)</div><div class="clear"></div></div>
+    
+    <div style="position:absolute;top:300px;left:0;"><div id="cache2" class="aGraph"></div><div class="bGraph"> <br/>2 Virginia (1)
+    <div id="cache2_tray"> </div>
+    </div><div class="clear"></div></div>
+
+    <div style="position:absolute;top:600px;left:0;"><div id="cache3" class="aGraph"></div><div class="bGraph"> <br/>3 Oregon    
+    <div id="cache3_tray"> </div>
+    </div><div class="clear"></div></div>
+
+    <div style="position:absolute;top:900px;left:0;"><div id="cache4" class="aGraph"></div><div class="bGraph"> <br/>4 Chicago
+    <div id="cache4_tray"> </div>
+    </div><div class="clear"></div></div>
+
+    <div style="position:absolute;top:1200px;left:0;"><div id="cache5" class="aGraph"></div><div class="bGraph"><br/>5 Virginia (2)
+    <div id="cache5_tray"> </div>
+    </div><div class="clear"></div></div>
+
+    <div style="position:absolute;top:1500px;left:0;"><div id="cache6" class="aGraph"></div><div class="bGraph"><br/>6 East (test)
+    <div id="cache6_tray"> </div>
+    </div><div class="clear"></div></div>
+
 
 
     <script>
     var socket = io.connect('http://iq.academiccatalogsearch.com:8078');
+    socket.on('domain', function (graphable) {
+        //alert(JSON.stringify(graphable));
+        graphTray(graphable.data, '#'+graphable.cache_server+'_tray');
+    });
+    
     socket.on('data', function (graphable) {
         //console.log(JSON.stringify(graphable));
         var d1 = [], d2 = [], x_scale = [], percent = [];
@@ -158,38 +180,54 @@
         data = data.replace(/\n/g, "<br/>\n");
         $(".list").append("<div style='color:red;'>"+data+"</div>");
     });
-    var graphTray = function() {
+    
+    var graphTray = function(data, sel) {
         var width = 300,
-            height = 200,
+            height = 250,
             color = d3.scale.category20c();
 
         var json = {
             "name": "tags",
             "children": [
-                {"name":"unco", "size": 170},
-                {"name":"nctc", "size": 40}
             ]
         };
-
-        var colors = d3.scale.category20c();
+        var temp = {};
+        
+        $.each(data[0].domains, function(i, o) {
+            temp[i] = o;
+        });
+        //alert(JSON.stringify(temp));
+        $.each(data[4].domains, function(i, o) {
+            temp[i] -= o;
+        });
+        
+        $.each(temp, function(i, o) {
+            if (o && o > 0) {
+                i = i.replace(/:smartcatalogiq:com$/, "");
+                i = i + " " + o;
+                json.children.push({"name":i, "size":o});
+            }
+        });
+        //alert(JSON.stringify(json));
+        var color = d3.scale.category20();
 
         var treemap = d3.layout.treemap()
             .size([width, height])
             .sticky(true)
             .sort(function(a,b) { return a.size - b.size; })
             .round(true)
-            .value(function(d) { return d.size; }).mode("dice");
+            .value(function(d) { return d.size; });//.mode("dice");
 
         function cell() {
             this
-              .style("background", function(d) { return d.children ? color(d.name) : null; })
+              .style("background", function(d) { return color(d.value); })
               .style("left", function(d) { return d.x + "px"; })
               .style("top", function(d) { return d.y + "px"; })
               .style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
               .style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
         }
 
-        var div = d3.select('#cache1_tray').style("position", "relative");
+        var div = d3.select(sel).style("position", "relative");
 
         div.data([json]).selectAll('div')
            .data(treemap.nodes)
@@ -309,7 +347,12 @@
         socket.emit("data_reqest", {"cache_server":"cache4", "limit":400});
         socket.emit("data_reqest", {"cache_server":"cache5", "limit":400});
         socket.emit("data_reqest", {"cache_server":"cache6", "limit":400});
-        graphTray();
+        socket.emit("domain_request", {"cache_server":"cache1", "limit":10});
+        socket.emit("domain_request", {"cache_server":"cache2", "limit":10});
+        socket.emit("domain_request", {"cache_server":"cache3", "limit":10});
+        socket.emit("domain_request", {"cache_server":"cache4", "limit":10});
+        socket.emit("domain_request", {"cache_server":"cache5", "limit":10});
+        socket.emit("domain_request", {"cache_server":"cache6", "limit":10});
     });
 
     </script>
